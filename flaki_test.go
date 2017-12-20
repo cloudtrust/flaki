@@ -137,6 +137,63 @@ func TestFormatTime(t *testing.T) {
     assert.Equal(t, expectedString, actual)
 }
 
+type flakiTime interface {
+    Flaki
+    SetTimeGen(func() time.Time)
+}
+
+func TestConstantTimeStamp(t *testing.T) {
+    var flaki Flaki = getFlaki(t)
+
+    var flakiTime, ok = flaki.(flakiTime)
+    assert.True(t, ok)
+
+    // Simulate ids generation with same timestamp. /!\ the date returned must be after the epoch.
+    var constantTimeGen = func() time.Time {
+        return time.Date(2018, 1, 1, 0, 0, 0, 0, time.UTC)
+    }
+    flakiTime.SetTimeGen(constantTimeGen)
+
+    var prevId, err = flaki.NextId()
+    assert.Nil(t, err)
+
+    // When the timestamp is the same, the sequence is incremented to generate the next id
+    for i := 0; i < 1000; i++ {
+        id , err := flaki.NextId()
+        assert.Nil(t, err)
+        assert.True(t, id == prevId+1)
+        prevId = id
+    }
+}
+
+func TestBackwardTimeShift(t *testing.T) {
+    var flaki Flaki = getFlaki(t)
+
+    var flakiTime, ok = flaki.(flakiTime)
+    assert.True(t, ok)
+
+    // Simulate clock that goes backward in time: we set a starting time in the future, then
+    // we switch back to the actual time.
+    var timeInFuture = time.Now().Add(1 * time.Second)
+    var futureTimeGen = func() time.Time {
+        return timeInFuture
+    }
+    flakiTime.SetTimeGen(futureTimeGen)
+
+    // Generate id
+    var id, err = flaki.NextId()
+    assert.Nil(t, err)
+    assert.NotZero(t, id)
+
+    // Go backward in time
+    flakiTime.SetTimeGen(time.Now)
+
+    // Generate new id. This must returns an error
+    id, err = flaki.NextId()
+    assert.NotNil(t, err)
+    assert.Zero(t, id)
+}
+
 func BenchmarkNextId(b *testing.B) {
     var flaki Flaki
     {

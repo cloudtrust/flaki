@@ -38,6 +38,7 @@ type Generator struct {
     startEpoch time.Time
     lastTimestamp int64
     sequence int64
+    timeGen func() time.Time
     logger log.Logger
     mutex *sync.Mutex
 }
@@ -56,6 +57,7 @@ func NewFlaki(logger log.Logger, options ...option) (Flaki, error) {
         startEpoch: time.Date(2017, 1, 1, 0, 0, 0, 0, time.UTC),
         lastTimestamp: -1,
         sequence: 0,
+        timeGen: time.Now,
         logger: logger,
         mutex: &sync.Mutex{},
     }
@@ -80,7 +82,7 @@ func (g *Generator) NextId() (int64, error) {
     g.mutex.Lock()
     defer g.mutex.Unlock()
 
-    var timestamp int64 = currentTimeInUnixMillis()
+    var timestamp int64 = g.currentTimeInUnixMillis()
     var prevTimestamp int64 = g.lastTimestamp
 
     if timestamp < prevTimestamp {
@@ -92,7 +94,7 @@ func (g *Generator) NextId() (int64, error) {
     if timestamp == prevTimestamp {
         g.sequence = (g.sequence + 1) & sequence_mask
         if g.sequence == 0 {
-            timestamp = tilNextMillis(prevTimestamp)
+            timestamp = g.tilNextMillis(prevTimestamp)
         }
     } else {
         g.sequence = 0
@@ -120,11 +122,11 @@ func (g *Generator) NextValidId() (int64) {
     return id
 }
 
-func tilNextMillis(prevTimestamp int64) int64 {
-    var timestamp int64 = currentTimeInUnixMillis()
+func (g *Generator) tilNextMillis(prevTimestamp int64) int64 {
+    var timestamp int64 = g.currentTimeInUnixMillis()
 
     for timestamp <= prevTimestamp {
-        timestamp = currentTimeInUnixMillis()
+        timestamp = g.currentTimeInUnixMillis()
     }
     return timestamp
 }
@@ -142,8 +144,8 @@ func epochValidity(startEpoch time.Time) time.Time {
     return validUntil
 }
 
-func currentTimeInUnixMillis() int64 {
-    return timeToUnixMillis(time.Now())
+func (g *Generator) currentTimeInUnixMillis() int64 {
+    return timeToUnixMillis(g.timeGen())
 }
 
 func timeToUnixMillis(t time.Time) int64 {
@@ -208,6 +210,12 @@ func (g *Generator) setStartEpoch(epoch time.Time) error {
 
     g.startEpoch = epoch
     return nil
+}
+
+
+// Use in the tests to control the time
+func (g *Generator) SetTimeGen(timeGen func() time.Time) {
+    g.timeGen = timeGen
 }
 
 func (g *Generator) String() string {
