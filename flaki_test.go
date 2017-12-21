@@ -9,14 +9,20 @@ import (
     "time"
 )
 
-func TestX(t *testing.T) {
+func TestNewFlaki(t *testing.T) {
     var flaki Flaki
     var err error
+    var logger log.Logger = nil
 
-    flaki, err = NewFlaki(getLogger(), ComponentId(max_component_id), NodeId(max_node_id))
+    // Test with nil logger
+    flaki, err = NewFlaki(logger)
+    assert.NotNil(t, err)
+    assert.Nil(t, flaki)
+
+    // Test with valid logger
+    logger = log.NewLogfmtLogger(os.Stdout)
+    flaki, err = NewFlaki(logger)
     assert.Nil(t, err)
-
-    flaki.NextId()
     assert.NotNil(t, flaki)
 }
 
@@ -180,10 +186,12 @@ func TestBackwardTimeShift(t *testing.T) {
     }
     flakiTime.SetTimeGen(futureTimeGen)
 
-    // Generate id
+    // Generate ids
     var id, err = flaki.NextId()
     assert.Nil(t, err)
-    assert.NotZero(t, id)
+    assert.True(t, id > 0)
+    id = flaki.NextValidId()
+    assert.True(t, id > 0)
 
     // Go backward in time
     flakiTime.SetTimeGen(time.Now)
@@ -191,7 +199,53 @@ func TestBackwardTimeShift(t *testing.T) {
     // Generate new id. This must returns an error
     id, err = flaki.NextId()
     assert.NotNil(t, err)
-    assert.Zero(t, id)
+    assert.True(t, id == -1)
+    // Here the id should be valid. If the clock goes backward (timestamp < prevTimestamp),
+    // we wait until the situation goes back to normal (timestamp >= prevTimestamp). In this
+    // test we wait approximately 1 second.
+    id = flaki.NextValidId()
+    assert.True(t, id > 0)
+}
+
+func TestTilNextMillis(t *testing.T) {
+    var flaki Flaki = getFlaki(t)
+
+    var flakiTime, ok = flaki.(flakiTime)
+    assert.True(t, ok)
+
+    // Simulate ids generation with same timestamp. /!\ the date returned must be after the epoch.
+    var counter = 0
+    var constantTimeGen = func() time.Time {
+        counter = counter + 1
+        if counter > (1 << 15) + 10 {
+            return time.Date(2018, 1, 1, 0, 0, 1, 0, time.UTC)
+        }
+        return time.Date(2018, 1, 1, 0, 0, 0, 0, time.UTC)
+    }
+    flakiTime.SetTimeGen(constantTimeGen)
+
+    var prevId, err = flaki.NextId()
+    assert.Nil(t, err)
+
+    // When the timestamp is the same, the sequence is incremented to generate the next id
+    var n = (1 << 15)
+    for i := 0; i < n; i++ {
+        id , err := flaki.NextId()
+        assert.Nil(t, err)
+        assert.True(t, id > prevId)
+        prevId = id
+    }
+}
+
+func TestEpochValidity(t *testing.T) {
+    var startEpoch = time.Date(2018, 1, 1, 0, 0, 0, 0, time.UTC)
+    var expected = time.Date(2087, 9, 7, 15, 0, 0, 0, time.UTC)
+
+    var result = epochValidity(startEpoch)
+    // We set the minutes, seconds and nanoseconds to zero for the comparison
+    result = result.Truncate(1 * time.Hour)
+
+    assert.Equal(t, expected, result)
 }
 
 func BenchmarkNextId(b *testing.B) {
@@ -226,7 +280,8 @@ func getLogger() log.Logger {
     if err != nil {
         return nil
     }
-
+    //var logger = log.NewLogfmtLogger(os.Stdout)
+    //logger = log.With(logger, "time", log.DefaultTimestampUTC, "caller", log.DefaultCaller)
     return log.NewLogfmtLogger(f)
 }
 
