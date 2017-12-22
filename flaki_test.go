@@ -40,7 +40,7 @@ func TestSetComponentId(t *testing.T) {
     }
 
     // Test valid component ids
-    var validComponentIds []int64 = []int64{0, 1, max_component_id-1, max_component_id}
+    var validComponentIds []int64 = []int64{0, 1, max_component_id - 1, max_component_id}
 
     for _, validId := range validComponentIds {
         flaki, err = NewFlaki(getLogger(), ComponentId(validId))
@@ -63,7 +63,7 @@ func TestSetNodeId(t *testing.T) {
     }
 
     // Test valid node ids
-    var validNodeId []int64 = []int64{0, 1, max_node_id-1, max_node_id}
+    var validNodeId []int64 = []int64{0, 1, max_node_id - 1, max_node_id}
 
     for _, validId := range validNodeId {
         flaki, err = NewFlaki(getLogger(), NodeId(validId))
@@ -178,13 +178,23 @@ func TestBackwardTimeShift(t *testing.T) {
     var flakiTime, ok = flaki.(flakiTime)
     assert.True(t, ok)
 
-    // Simulate clock that goes backward in time: we set a starting time in the future, then
-    // we switch back to the actual time.
-    var timeInFuture = time.Now().Add(1 * time.Second)
-    var futureTimeGen = func() time.Time {
-        return timeInFuture
+    // Simulate clock that goes backward in time. The 3rd time timeGen is called, it returns
+    // a time in the past.
+    var nbrCallToTimeGen = 0
+    var simulatedTime = time.Date(2018, 1, 1, 0, 0, 0, 0, time.UTC)
+    var timeGen = func() time.Time {
+        nbrCallToTimeGen++
+
+        // The 3rd time timeGen is called, we simulate the clock going 2 seconds backward
+        switch nbrCallToTimeGen {
+        case 3:
+            simulatedTime = simulatedTime.Add(-2 * time.Second)
+        default:
+            simulatedTime = simulatedTime.Add(1 * time.Second)
+        }
+        return simulatedTime
     }
-    flakiTime.SetTimeGen(futureTimeGen)
+    flakiTime.SetTimeGen(timeGen)
 
     // Generate ids
     var id, err = flaki.NextId()
@@ -193,16 +203,13 @@ func TestBackwardTimeShift(t *testing.T) {
     id = flaki.NextValidId()
     assert.True(t, id > 0)
 
-    // Go backward in time
-    flakiTime.SetTimeGen(time.Now)
-
     // Generate new id. This must returns an error
     id, err = flaki.NextId()
     assert.NotNil(t, err)
     assert.True(t, id == -1)
     // Here the id should be valid. If the clock goes backward (timestamp < prevTimestamp),
     // we wait until the situation goes back to normal (timestamp >= prevTimestamp). In this
-    // test we wait approximately 1 second.
+    // test we wait approximately 2 seconds.
     id = flaki.NextValidId()
     assert.True(t, id > 0)
 }
@@ -213,24 +220,26 @@ func TestTilNextMillis(t *testing.T) {
     var flakiTime, ok = flaki.(flakiTime)
     assert.True(t, ok)
 
-    // Simulate ids generation with same timestamp. /!\ the date returned must be after the epoch.
-    var counter = 0
-    var constantTimeGen = func() time.Time {
-        counter = counter + 1
-        if counter > (1 << 15) + 10 {
-            return time.Date(2018, 1, 1, 0, 0, 1, 0, time.UTC)
+    // Simulate sequence overflow. We return a constant timestamp and generate more than sequence_mask new ids.
+    // The expected behavior is that flaki will wait until the timestamp increment to return a new id. We increment
+    // it the (sequence_mask + 2) time timeGen is called, so we are not stuck in an infinite loop.
+    var nbrCallToTimeGen = 0
+    var simulatedTime = time.Date(2018, 1, 1, 0, 0, 0, 0, time.UTC)
+    var timeGen = func() time.Time {
+        switch nbrCallToTimeGen {
+        case sequence_mask + 3:
+            simulatedTime = simulatedTime.Add(1 * time.Second)
+        default:
         }
-        return time.Date(2018, 1, 1, 0, 0, 0, 0, time.UTC)
+        nbrCallToTimeGen++
+        return simulatedTime
     }
-    flakiTime.SetTimeGen(constantTimeGen)
+    flakiTime.SetTimeGen(timeGen)
 
-    var prevId, err = flaki.NextId()
-    assert.Nil(t, err)
-
-    // When the timestamp is the same, the sequence is incremented to generate the next id
-    var n = (1 << 15)
-    for i := 0; i < n; i++ {
-        id , err := flaki.NextId()
+    // Generate ids
+    var prevId int64 = -1
+    for i := 0; i < sequence_mask + 3; i++ {
+        var id , err = flaki.NextId()
         assert.Nil(t, err)
         assert.True(t, id > prevId)
         prevId = id
@@ -280,8 +289,8 @@ func getLogger() log.Logger {
     if err != nil {
         return nil
     }
-    //var logger = log.NewLogfmtLogger(os.Stdout)
-    //logger = log.With(logger, "time", log.DefaultTimestampUTC, "caller", log.DefaultCaller)
+    var logger= log.NewLogfmtLogger(os.Stdout)
+    logger = log.With(logger, "time", log.DefaultTimestampUTC, "caller", log.DefaultCaller)
     return log.NewLogfmtLogger(f)
 }
 
