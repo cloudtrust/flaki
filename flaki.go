@@ -1,9 +1,11 @@
 // Flaki - Das kleine Generator
 // Flaki is a unique id generator inspired by Snowflake (https://github.com/twitter/snowflake).
-// It returns unique positive ids of type int64.
+// It returns unique ids of type uint64.
 // The id is composed of: 5-bit component id, 2-bit node id, 15-bit sequence number, and
 // 42-bit time's milliseconds since the epoch.
-// They will be valid (positive) until 69 years 8 months and a few days after the epoch.
+// They will be valid until 139 years 4 months and a few days after the epoch. After that, there
+// will be an overflow and the newly generated ids won't be unique anymore.
+
 package flaki
 
 import (
@@ -17,6 +19,7 @@ const(
     componentIdBits = 5
     nodeIdBits = 2
     sequenceBits = 15
+    timestampBits = 64 - componentIdBits - nodeIdBits - sequenceBits
 
     maxComponentId = (1 << componentIdBits) - 1
     maxNodeId = (1 << nodeIdBits) - 1
@@ -28,15 +31,15 @@ const(
 )
 
 type Flaki interface {
-    NextId() (int64, error)
-    NextValidId() (int64)
+    NextId() (uint64, error)
+    NextValidId() (uint64)
 }
 
 type Generator struct {
-    componentId int64
-    nodeId int64
+    componentId uint64
+    nodeId uint64
     lastTimestamp int64
-    sequence int64
+    sequence uint64
     logger log.Logger
     mutex *sync.Mutex
 
@@ -89,7 +92,7 @@ func NewFlaki(logger log.Logger, options ...option) (Flaki, error) {
 // If the clock moves backward, it returns an error.
 // If more than 2^15 id are requested in one millisecond, we wait for the next millisecond
 // to generate them, otherwise the sequence overflows and this lead to duplicate ids.
-func (g *Generator) NextId() (int64, error) {
+func (g *Generator) NextId() (uint64, error) {
     g.mutex.Lock()
     defer g.mutex.Unlock()
 
@@ -99,7 +102,7 @@ func (g *Generator) NextId() (int64, error) {
     if timestamp < prevTimestamp {
         var err error = fmt.Errorf("clock moved backwards. Refusing to generate ids for %d [ms]", prevTimestamp - timestamp)
         g.logger.Log("error", err, "prev_timestamp", prevTimestamp, "timestamp", timestamp)
-        return -1, err
+        return 0, err
     }
 
     if timestamp == prevTimestamp {
@@ -112,7 +115,7 @@ func (g *Generator) NextId() (int64, error) {
     }
 
     g.lastTimestamp = timestamp
-    var id int64 = ((timestamp - timeToUnixMillis(g.startEpoch)) << timestampLeftShift) |
+    var id uint64 = (uint64(timestamp - timeToUnixMillis(g.startEpoch)) << timestampLeftShift) |
         (g.nodeId << nodeIdShift) | (g.componentId << componentIdShift) | g.sequence
 
     g.logger.Log("msg", "id generated", "prev_timestamp", prevTimestamp, "timestamp", timestamp, "sequence", g.sequence, "id", id)
@@ -122,11 +125,11 @@ func (g *Generator) NextId() (int64, error) {
 // Generate a valid unique id.
 // It always returns a valid identifier, never an error.
 // If the clock moves backward, we wait until the situation goes back to normal.
-func (g *Generator) NextValidId() (int64) {
-    var id int64 = -1
-    var err error
+func (g *Generator) NextValidId() (uint64) {
+    var id uint64
+    var err error = fmt.Errorf("")
 
-    for id == -1 {
+    for err != nil {
         id, err = g.NextId()
         if err != nil {
             g.logger.Log("msg", "invalid system clock")
@@ -148,9 +151,6 @@ func (g *Generator) tilNextMillis(prevTimestamp int64) int64 {
 
 // Return the date till which the generator can generate valid ids.
 func epochValidity(startEpoch time.Time) time.Time {
-    // The number of available bits for the timestamp is 63 (int64 with sign bit always 0) minus
-    // the bits used for the node id, component id and sequence.
-    var timestampBits uint = 63 - nodeIdBits - componentIdBits - sequenceBits
     var durationMilliseconds int64 = (1 << timestampBits) - 1
     var durationNanoseconds int64 = durationMilliseconds * 1e6
 
@@ -169,15 +169,14 @@ func timeToUnixMillis(t time.Time) int64 {
 }
 
 // Set the component id for the generator.
-func ComponentId(id int64) option {
+func ComponentId(id uint64) option {
     return func(g *Generator) error {
         return g.setComponentId(id)
     }
 }
 
-func (g *Generator) setComponentId(id int64) error {
-    // Input validation.
-    if id < 0 || id > maxComponentId {
+func (g *Generator) setComponentId(id uint64) error {
+    if id > maxComponentId {
         var err error = fmt.Errorf("the component id must be in [%d..%d]", 0, maxComponentId)
         g.logger.Log("error", err, "component_id", id)
         return err
@@ -187,15 +186,14 @@ func (g *Generator) setComponentId(id int64) error {
 }
 
 // Set the node id for the generator.
-func NodeId(id int64) option {
+func NodeId(id uint64) option {
     return func(g *Generator) error {
         return g.setNodeId(id)
     }
 }
 
-func (g *Generator) setNodeId(id int64) error {
-    // Input validation.
-    if id < 0 || id > maxNodeId {
+func (g *Generator) setNodeId(id uint64) error {
+    if id > maxNodeId {
         var err error = fmt.Errorf("the node id must be in [%d..%d]", 0, maxNodeId)
         g.logger.Log("error", err, "node_id", id)
         return err
@@ -212,7 +210,6 @@ func Epoch(epoch time.Time) option {
 }
 
 func (g *Generator) setStartEpoch(epoch time.Time) error {
-    // Input validation.
     // According to time.Time documentation, UnixNano returns the number of nanoseconds elapsed
     // since January 1, 1970 UTC. The result is undefined if the Unix time in nanoseconds cannot
     // be represented by an int64 (i.e. a date after 2262).
@@ -223,7 +220,6 @@ func (g *Generator) setStartEpoch(epoch time.Time) error {
         g.logger.Log("error", err, "start_epoch", formatTime(epoch))
         return err
     }
-
     g.startEpoch = epoch
     return nil
 }

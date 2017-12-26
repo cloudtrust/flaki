@@ -32,7 +32,7 @@ func TestSetComponentId(t *testing.T) {
     var err error
 
     // Test with invalid component ids.
-    var invalidComponentIds []int64 = []int64{-1, maxComponentId + 1}
+    var invalidComponentIds = []uint64{maxComponentId + 1, maxComponentId + 2}
 
     for _, invalidId := range invalidComponentIds {
         flaki, err = NewFlaki(getLogger(), ComponentId(invalidId))
@@ -41,7 +41,7 @@ func TestSetComponentId(t *testing.T) {
     }
 
     // Test with valid component ids.
-    var validComponentIds []int64 = []int64{0, 1, maxComponentId - 1, maxComponentId}
+    var validComponentIds = []uint64{0, 1, maxComponentId - 1, maxComponentId}
 
     for _, validId := range validComponentIds {
         flaki, err = NewFlaki(getLogger(), ComponentId(validId))
@@ -55,7 +55,7 @@ func TestSetNodeId(t *testing.T) {
     var err error
 
     // Test with invalid node ids.
-    var invalidNodeIds []int64 = []int64{-1, maxNodeId + 1}
+    var invalidNodeIds = []uint64{maxNodeId + 1, maxNodeId + 2}
 
     for _, invalidId := range invalidNodeIds {
         flaki, err = NewFlaki(getLogger(), NodeId(invalidId))
@@ -64,7 +64,7 @@ func TestSetNodeId(t *testing.T) {
     }
 
     // Test with valid node ids.
-    var validNodeId []int64 = []int64{0, 1, maxNodeId - 1, maxNodeId}
+    var validNodeId = []uint64{0, 1, maxNodeId - 1, maxNodeId}
 
     for _, validId := range validNodeId {
         flaki, err = NewFlaki(getLogger(), NodeId(validId))
@@ -105,14 +105,14 @@ func TestSetEpoch(t *testing.T) {
 
 func TestGenerateId(t *testing.T) {
     var flaki Flaki = getFlaki(t)
-    var id int64 = flaki.NextValidId()
+    var id uint64 = flaki.NextValidId()
     assert.True(t, id > 0)
 }
 
 func TestIncreasingIds(t *testing.T) {
     var flaki Flaki = getFlaki(t)
 
-    var prevId int64 = 0
+    var prevId uint64 = 0
     for i := 0; i < 1000; i++ {
         id , err := flaki.NextId()
         assert.True(t, id > prevId)
@@ -122,11 +122,11 @@ func TestIncreasingIds(t *testing.T) {
 
 func TestUniqueIds(t *testing.T) {
     var flaki Flaki = getFlaki(t)
-    var ids = make(map[int64]bool)
+    var ids = make(map[uint64]bool)
 
     var count int = 1e6
     for i := 0; i < count; i++ {
-        var id int64 = flaki.NextValidId()
+        var id uint64 = flaki.NextValidId()
         // The id should be unique, i.e. not in the map.
         _, ok := ids[id]
         assert.False(t, ok)
@@ -207,7 +207,7 @@ func TestBackwardTimeShift(t *testing.T) {
     // Generate new id. This must returns an error.
     id, err = flaki.NextId()
     assert.NotNil(t, err)
-    assert.True(t, id == -1)
+    assert.True(t, id == 0)
     // Here the id should be valid. If the clock goes backward (timestamp < prevTimestamp),
     // we wait until the situation goes back to normal (timestamp >= prevTimestamp). In this
     // test we wait approximately 2 milliseconds.
@@ -238,7 +238,7 @@ func TestTilNextMillis(t *testing.T) {
     flakiTime.SetTimeGen(timeGen)
 
     // Generate ids.
-    var prevId int64 = -1
+    var prevId uint64 = 0
     for i := 0; i < sequenceMask + 3; i++ {
         var id , err = flaki.NextId()
         assert.Nil(t, err)
@@ -249,7 +249,7 @@ func TestTilNextMillis(t *testing.T) {
 
 func TestEpochValidity(t *testing.T) {
     var startEpoch = time.Date(2018, 1, 1, 0, 0, 0, 0, time.UTC)
-    var expected = time.Date(2087, 9, 7, 15, 0, 0, 0, time.UTC)
+    var expected = time.Date(2157, 5, 15, 7, 0, 0, 0, time.UTC)
 
     var result = epochValidity(startEpoch)
     // We set the minutes, seconds and nanoseconds to zero for the comparison.
@@ -260,13 +260,12 @@ func TestEpochValidity(t *testing.T) {
 
 func TestEpochOverflow(t *testing.T) {
     var startEpoch = time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
-    // The timestamp is 41 bits.
-    var maxTimestampValue int64 = (1 << 41) -1
+    var maxTimestampValue uint64 = (1 << timestampBits) -1
 
     var flaki Flaki
     {
         var err error
-        flaki, err = NewFlaki(getLogger(), Epoch(startEpoch))
+        flaki, err = NewFlaki(getLogger(), Epoch(startEpoch), ComponentId(0), NodeId(0))
         assert.Nil(t, err)
         assert.NotNil(t, flaki)
     }
@@ -290,7 +289,7 @@ func TestEpochOverflow(t *testing.T) {
     // The timestamp part of the id overflows.
     id , err = flaki.NextId()
     assert.Nil(t, err)
-    assert.True(t, id < 0)
+    assert.Equal(t, id, uint64(0))
 }
 
 func BenchmarkNextId(b *testing.B) {

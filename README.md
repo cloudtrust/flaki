@@ -7,6 +7,7 @@ Flaki is an unique id generator inspired by [Snowflake](https://github.com/twitt
 ## Configuration
 
 
+g.logger.Log("warning", "flaki won't generate valid ids after 01.01.2262")
 
 // It returns unique positive ids of type int64.
 // The id is composed of: 5-bit component id, 2-bit node id, 15-bit sequence number, and
