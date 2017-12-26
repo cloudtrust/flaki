@@ -84,7 +84,7 @@ func TestSetEpoch(t *testing.T) {
     }
 
     for _, invalidEpoch := range invalidEpochs {
-        flaki, err = NewFlaki(getLogger(), Epoch(invalidEpoch))
+        flaki, err = NewFlaki(getLogger(), StartEpoch(invalidEpoch))
         assert.NotNil(t, err)
         assert.Nil(t, flaki)
     }
@@ -97,7 +97,7 @@ func TestSetEpoch(t *testing.T) {
     }
 
     for _, validEpoch := range validEpochs {
-        flaki, err = NewFlaki(getLogger(), Epoch(validEpoch))
+        flaki, err = NewFlaki(getLogger(), StartEpoch(validEpoch))
         assert.Nil(t, err)
         assert.NotNil(t, flaki)
     }
@@ -265,7 +265,7 @@ func TestEpochOverflow(t *testing.T) {
     var flaki Flaki
     {
         var err error
-        flaki, err = NewFlaki(getLogger(), Epoch(startEpoch), ComponentId(0), NodeId(0))
+        flaki, err = NewFlaki(getLogger(), StartEpoch(startEpoch), ComponentId(0), NodeId(0))
         assert.Nil(t, err)
         assert.NotNil(t, flaki)
     }
