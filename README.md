@@ -1,4 +1,4 @@
-# flaki - Das kleine Generator [![Build Status](https://travis-ci.org/cloudtrust/flaki.svg?branch=master)](https://travis-ci.org/cloudtrust/flaki)
+# Flaki - Das kleine Generator [![Build Status](https://travis-ci.org/cloudtrust/flaki.svg?branch=master)](https://travis-ci.org/cloudtrust/flaki)
 
 Flaki is an unique id generator inspired by [Snowflake](https://github.com/twitter/snowflake).
 It generates 64-bit unique ids of type uint64. Each id is composed of
@@ -27,8 +27,8 @@ if err != nil {
 }
 ```
 
-You can configure the Flaki node id, component id and start epoch by submitting options to the call to NewFlaki.
-NewFlaki takes a variable number of option as parameter.
+You can configure the Flaki's node id, component id and start epoch by submitting options to the call to NewFlaki.
+NewFlaki takes a variable number of options as parameter.
 If no option is given, the following default parameters are used:
 * 0 for the node id
 * 0 for the component id
@@ -72,6 +72,6 @@ If the clock moves backward, it wait until the situation goes back to normal bef
 
 Flaki won't generate valid ids after the year 2262.
 This is due to the fact that the UnixNano function of the ```package time```
-return undefined result if the Unix time in nanoseconds cannot be represented by an int64, i.e. 
+returns undefined result if the Unix time in nanoseconds cannot be represented by an int64, i.e. 
 a date before the year 1678 or after 2262.
 
