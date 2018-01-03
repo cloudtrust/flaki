@@ -11,7 +11,7 @@ import (
 func TestNewFlaki(t *testing.T) {
 	var flaki Flaki
 	var err error
-	var logger log.Logger = nil
+	var logger log.Logger
 
 	// Test with nil logger (should return an error).
 	flaki, err = NewFlaki(logger)
@@ -112,7 +112,7 @@ func TestGenerateId(t *testing.T) {
 func TestIncreasingIds(t *testing.T) {
 	var flaki Flaki = getFlaki(t)
 
-	var prevId uint64 = 0
+	var prevId uint64
 	for i := 0; i < 1000; i++ {
 		id, err := flaki.NextId()
 		assert.True(t, id > prevId)
@@ -238,7 +238,7 @@ func TestTilNextMillis(t *testing.T) {
 	flakiTime.SetTimeGen(timeGen)
 
 	// Generate ids.
-	var prevId uint64 = 0
+	var prevId uint64
 	for i := 0; i < sequenceMask+3; i++ {
 		var id, err = flaki.NextId()
 		assert.Nil(t, err)
@@ -323,8 +323,6 @@ func getLogger() log.Logger {
 	if err != nil {
 		return nil
 	}
-	var logger = log.NewLogfmtLogger(os.Stdout)
-	logger = log.With(logger, "time", log.DefaultTimestampUTC, "caller", log.DefaultCaller)
 	return log.NewLogfmtLogger(f)
 }
 
