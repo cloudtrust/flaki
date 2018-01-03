@@ -1,4 +1,4 @@
-# Flaki - Das kleine Generator [![Build Status](https://travis-ci.org/cloudtrust/flaki.svg?branch=master)](https://travis-ci.org/cloudtrust/flaki)[![Go Report](https://goreportcard.com/badge/github.com/cloudtrust/flaki)](https://goreportcard.com/report/github.com/cloudtrust/flaki)
+# Flaki - Das kleine Generator [![Build Status](https://travis-ci.org/cloudtrust/flaki.svg?branch=master)](https://travis-ci.org/cloudtrust/flaki)[![Go Report](https://goreportcard.com/badge/github.com/JohanDroz/flaki)](https://goreportcard.com/report/github.com/JohanDroz/flaki)
 
 Flaki is an unique id generator inspired by [Snowflake](https://github.com/twitter/snowflake).
 It generates 64-bit unique ids of type uint64. Each id is composed of
