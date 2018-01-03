@@ -62,7 +62,7 @@ id, err = flaki.NextID()
 id = flaki.NextValidID()
 ```
 
-NextId returns either a unique ID or an error if the clock moves backward.
+NextID returns either a unique ID or an error if the clock moves backward.
 
 Unlike NextID, NexValidID always returns a valid ID, never an error.
 If the clock moves backward, it wait until the situation goes back to normal before returning new IDs.
