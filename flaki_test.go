@@ -1,28 +1,17 @@
 package flaki
 
 import (
-	"github.com/go-kit/kit/log"
-	"github.com/stretchr/testify/assert"
-	"os"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestNewFlaki(t *testing.T) {
 	var flaki Flaki
 	var err error
-	var logger log.Logger
 
-	// Test with nil logger (should return an error).
-	flaki, err = NewFlaki(logger)
-	assert.NotNil(t, err)
-	assert.Nil(t, flaki)
-
-	// Test with valid logger.
-	f, err := os.Open(os.DevNull)
-	assert.Nil(t, err)
-	logger = log.NewLogfmtLogger(f)
-	flaki, err = NewFlaki(logger)
+	flaki, err = NewFlaki()
 	assert.Nil(t, err)
 	assert.NotNil(t, flaki)
 }
@@ -35,7 +24,7 @@ func TestSetComponentID(t *testing.T) {
 	var invalidComponentIDs = []uint64{maxComponentID + 1, maxComponentID + 2}
 
 	for _, invalidID := range invalidComponentIDs {
-		flaki, err = NewFlaki(getLogger(), ComponentID(invalidID))
+		flaki, err = NewFlaki(ComponentID(invalidID))
 		assert.NotNil(t, err)
 		assert.Nil(t, flaki)
 	}
@@ -44,7 +33,7 @@ func TestSetComponentID(t *testing.T) {
 	var validComponentIDs = []uint64{0, 1, maxComponentID - 1, maxComponentID}
 
 	for _, validID := range validComponentIDs {
-		flaki, err = NewFlaki(getLogger(), ComponentID(validID))
+		flaki, err = NewFlaki(ComponentID(validID))
 		assert.Nil(t, err)
 		assert.NotNil(t, flaki)
 	}
@@ -58,7 +47,7 @@ func TestSetNodeID(t *testing.T) {
 	var invalidNodeIDs = []uint64{maxNodeID + 1, maxNodeID + 2}
 
 	for _, invalidID := range invalidNodeIDs {
-		flaki, err = NewFlaki(getLogger(), NodeID(invalidID))
+		flaki, err = NewFlaki(NodeID(invalidID))
 		assert.NotNil(t, err)
 		assert.Nil(t, flaki)
 	}
@@ -67,7 +56,7 @@ func TestSetNodeID(t *testing.T) {
 	var validNodeIDs = []uint64{0, 1, maxNodeID - 1, maxNodeID}
 
 	for _, validID := range validNodeIDs {
-		flaki, err = NewFlaki(getLogger(), NodeID(validID))
+		flaki, err = NewFlaki(NodeID(validID))
 		assert.Nil(t, err)
 		assert.NotNil(t, flaki)
 	}
@@ -84,7 +73,7 @@ func TestSetEpoch(t *testing.T) {
 	}
 
 	for _, invalidEpoch := range invalidEpochs {
-		flaki, err = NewFlaki(getLogger(), StartEpoch(invalidEpoch))
+		flaki, err = NewFlaki(StartEpoch(invalidEpoch))
 		assert.NotNil(t, err)
 		assert.Nil(t, flaki)
 	}
@@ -97,7 +86,7 @@ func TestSetEpoch(t *testing.T) {
 	}
 
 	for _, validEpoch := range validEpochs {
-		flaki, err = NewFlaki(getLogger(), StartEpoch(validEpoch))
+		flaki, err = NewFlaki(StartEpoch(validEpoch))
 		assert.Nil(t, err)
 		assert.NotNil(t, flaki)
 	}
@@ -266,7 +255,7 @@ func TestEpochOverflow(t *testing.T) {
 	var flaki Flaki
 	{
 		var err error
-		flaki, err = NewFlaki(getLogger(), StartEpoch(startEpoch), ComponentID(0), NodeID(0))
+		flaki, err = NewFlaki(StartEpoch(startEpoch), ComponentID(0), NodeID(0))
 		assert.Nil(t, err)
 		assert.NotNil(t, flaki)
 	}
@@ -297,7 +286,7 @@ func BenchmarkNextID(b *testing.B) {
 	var flaki Flaki
 	{
 		var err error
-		flaki, err = NewFlaki(getLogger())
+		flaki, err = NewFlaki()
 		assert.Nil(b, err)
 	}
 
@@ -310,7 +299,7 @@ func BenchmarkNextValidID(b *testing.B) {
 	var flaki Flaki
 	{
 		var err error
-		flaki, err = NewFlaki(getLogger())
+		flaki, err = NewFlaki()
 		assert.Nil(b, err)
 	}
 
@@ -319,20 +308,12 @@ func BenchmarkNextValidID(b *testing.B) {
 	}
 }
 
-func getLogger() log.Logger {
-	f, err := os.Open(os.DevNull)
-	if err != nil {
-		return nil
-	}
-	return log.NewLogfmtLogger(f)
-}
-
 func getFlaki(t *testing.T) Flaki {
 	var flaki Flaki
 	{
 		var err error
 
-		flaki, err = NewFlaki(getLogger())
+		flaki, err = NewFlaki()
 		assert.Nil(t, err)
 	}
 	return flaki
