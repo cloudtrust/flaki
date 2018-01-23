@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"fmt"
+	"strconv"
 	"time"
 )
 
@@ -31,7 +32,9 @@ const (
 // Flaki is the interface of the unique ID generator.
 type Flaki interface {
 	NextID() (uint64, error)
+	NextIDString() (string, error)
 	NextValidID() uint64
+	NextValidIDString() string
 }
 
 // Generator is the unique ID generator. Create a generator with NewFlaki.
@@ -115,6 +118,15 @@ func (g *Generator) NextID() (uint64, error) {
 	return id, nil
 }
 
+// NextIDString returns the NextID as a string.
+func (g *Generator) NextIDString() (string, error) {
+	var id, err = g.NextID()
+	if err != nil {
+		return "", err
+	}
+	return strconv.FormatUint(id, 10), nil
+}
+
 // NextValidID always returns a new unique ID, it never returns an error.
 // If the clock moves backward, it waits until the situation goes back to normal
 // and then returns the valid ID.
@@ -130,6 +142,12 @@ func (g *Generator) NextValidID() uint64 {
 	}
 
 	return id
+}
+
+// NextValidIDString returns the NextValidID as a string.
+func (g *Generator) NextValidIDString() string {
+	var id = g.NextValidID()
+	return strconv.FormatUint(id, 10)
 }
 
 // tilNextMillis waits until the next millisecond.

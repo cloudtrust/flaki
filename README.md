@@ -1,7 +1,7 @@
 # Flaki - Das kleine Generator [![Build Status](https://travis-ci.org/cloudtrust/flaki.svg?branch=master)](https://travis-ci.org/cloudtrust/flaki) [![Coverage Status](https://coveralls.io/repos/github/cloudtrust/flaki/badge.svg?branch=master)](https://coveralls.io/github/cloudtrust/flaki?branch=master) [![Go Report Card](https://goreportcard.com/badge/github.com/cloudtrust/flaki)](https://goreportcard.com/report/github.com/cloudtrust/flaki)
 
 Flaki is an unique ID generator inspired by [Snowflake](https://github.com/twitter/snowflake).
-It generates 64-bit unique IDs of type uint64. Each ID is composed of
+It generates 64-bit unique IDs of type uint64 or string. The string IDs are simply the uint64 IDs represented as a string. Each ID is composed of
 
 | 42-bit timestamp | 2-bit node ID | 5-bit component ID | 15-bit sequence |
 ---------- | ---------- | ---------- | ---------- |
@@ -48,7 +48,7 @@ if err != nil {
 }
 ```
 
-To obtain IDs, flaki provides two methods: ```NextID() (uint64, error)``` and ```NextValidID() uint64``` 
+To obtain IDs, flaki provides two methods: ```NextID() (uint64, error)```, ```NextIDString() (string, error)```, ```NextValidID() uint64``` and ```NextValidIDString() string```.
 
 ```golang
 var id uint64
@@ -57,6 +57,12 @@ var err error
 id, err = flaki.NextID()
 
 id = flaki.NextValidID()
+
+var idStr string
+
+idStr, err = flaki.NextIDString()
+
+idStr = flaki.NextValidIDString()
 ```
 
 NextID returns either a unique ID or an error if the clock moves backward.

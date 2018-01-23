@@ -93,13 +93,16 @@ func TestSetEpoch(t *testing.T) {
 }
 
 func TestGenerateId(t *testing.T) {
-	var flaki = getFlaki(t)
+	var flaki, err = NewFlaki()
+	assert.Nil(t, err)
+
 	var id = flaki.NextValidID()
 	assert.True(t, id > 0)
 }
 
 func TestIncreasingIds(t *testing.T) {
-	var flaki = getFlaki(t)
+	var flaki, err = NewFlaki()
+	assert.Nil(t, err)
 
 	var prevID uint64
 	for i := 0; i < 1000; i++ {
@@ -111,7 +114,9 @@ func TestIncreasingIds(t *testing.T) {
 }
 
 func TestUniqueIds(t *testing.T) {
-	var flaki = getFlaki(t)
+	var flaki, err = NewFlaki()
+	assert.Nil(t, err)
+
 	var ids = make(map[uint64]bool)
 
 	var count int = 1e6
@@ -123,6 +128,59 @@ func TestUniqueIds(t *testing.T) {
 		ids[id] = true
 	}
 	assert.Equal(t, len(ids), count)
+}
+
+func TestNextIDString(t *testing.T) {
+	var flaki, err = NewFlaki()
+	assert.Nil(t, err)
+
+	var id string
+	id, err = flaki.NextIDString()
+	assert.Nil(t, err)
+	assert.NotZero(t, id)
+}
+
+func TestNextIDStringError(t *testing.T) {
+	var flaki, err = NewFlaki()
+	assert.Nil(t, err)
+
+	var flakiTime, ok = flaki.(flakiTime)
+	assert.True(t, ok)
+
+	// Simulate clock that goes backward in time. The second time timeGen is called, it returns
+	// a time 2 milliseconds in the past.
+	var nbrCallToTimeGen = 0
+	var simulatedTime = time.Date(2018, 1, 1, 0, 0, 0, 0, time.UTC)
+	var timeGen = func() time.Time {
+		nbrCallToTimeGen++
+
+		// The 3rd time timeGen is called, we simulate the clock going 2 milliseconds backward.
+		switch nbrCallToTimeGen {
+		case 2:
+			simulatedTime = simulatedTime.Add(-2 * time.Millisecond)
+		default:
+			simulatedTime = simulatedTime.Add(1 * time.Millisecond)
+		}
+		return simulatedTime
+	}
+	flakiTime.SetTimeGen(timeGen)
+
+	// Generate ids.
+	var id string
+	id, err = flaki.NextIDString()
+	assert.Nil(t, err)
+	assert.NotZero(t, id)
+	id, err = flaki.NextIDString()
+	assert.NotNil(t, err)
+	assert.Zero(t, id)
+}
+
+func TestNextValidIDString(t *testing.T) {
+	var flaki, err = NewFlaki()
+	assert.Nil(t, err)
+
+	var id = flaki.NextValidIDString()
+	assert.NotZero(t, id)
 }
 
 func TestFormatTime(t *testing.T) {
@@ -140,7 +198,8 @@ type flakiTime interface {
 }
 
 func TestConstantTimeStamp(t *testing.T) {
-	var flaki = getFlaki(t)
+	var flaki, err = NewFlaki()
+	assert.Nil(t, err)
 
 	var flakiTime, ok = flaki.(flakiTime)
 	assert.True(t, ok)
@@ -151,7 +210,8 @@ func TestConstantTimeStamp(t *testing.T) {
 	}
 	flakiTime.SetTimeGen(constantTimeGen)
 
-	var prevID, err = flaki.NextID()
+	var prevID uint64
+	prevID, err = flaki.NextID()
 	assert.Nil(t, err)
 
 	// When the timestamp is the same, the sequence is incremented to generate the next id.
@@ -164,7 +224,8 @@ func TestConstantTimeStamp(t *testing.T) {
 }
 
 func TestBackwardTimeShift(t *testing.T) {
-	var flaki = getFlaki(t)
+	var flaki, err = NewFlaki()
+	assert.Nil(t, err)
 
 	var flakiTime, ok = flaki.(flakiTime)
 	assert.True(t, ok)
@@ -188,7 +249,8 @@ func TestBackwardTimeShift(t *testing.T) {
 	flakiTime.SetTimeGen(timeGen)
 
 	// Generate ids.
-	var id, err = flaki.NextID()
+	var id uint64
+	id, err = flaki.NextID()
 	assert.Nil(t, err)
 	assert.True(t, id > 0)
 	id = flaki.NextValidID()
@@ -206,7 +268,8 @@ func TestBackwardTimeShift(t *testing.T) {
 }
 
 func TestTilNextMillis(t *testing.T) {
-	var flaki = getFlaki(t)
+	var flaki, err = NewFlaki()
+	assert.Nil(t, err)
 
 	var flakiTime, ok = flaki.(flakiTime)
 	assert.True(t, ok)
@@ -306,15 +369,4 @@ func BenchmarkNextValidID(b *testing.B) {
 	for n := 0; n < b.N; n++ {
 		flaki.NextValidID()
 	}
-}
-
-func getFlaki(t *testing.T) Flaki {
-	var flaki Flaki
-	{
-		var err error
-
-		flaki, err = NewFlaki()
-		assert.Nil(t, err)
-	}
-	return flaki
 }
