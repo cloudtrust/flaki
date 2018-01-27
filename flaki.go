@@ -1,6 +1,6 @@
-// Package flaki provides the implementation of Flaki - Das kleine Generator
-// Flaki is a unique ID generator inspired by Snowflake (https://github.com/twitter/snowflake).
-// It returns unique IDs of type uint64. The ID is composed of: 5-bit component ID, 2-bit node ID,
+// Package flaki provides the implementation of Flaki - Das kleine Generator.
+// Flaki is a distributed unique IDs generator inspired by Snowflake (https://github.com/twitter/snowflake).
+// It returns unique IDs of type uint64 or string. The ID is composed of: 5-bit component ID, 2-bit node ID,
 // 15-bit sequence number, and 42-bit time's milliseconds since the epoch.
 // Unique IDs will be generated until 139 years 4 months and a few days after the epoch. After that, there
 // will be an overflow and the newly generated IDs won't be unique anymore.
@@ -29,16 +29,8 @@ const (
 	timestampLeftShift = sequenceBits + componentIDBits + nodeIDNodeIDBits
 )
 
-// Flaki is the interface of the unique ID generator.
-type Flaki interface {
-	NextID() (uint64, error)
-	NextIDString() (string, error)
-	NextValidID() uint64
-	NextValidIDString() string
-}
-
-// Generator is the unique ID generator. Create a generator with NewFlaki.
-type Generator struct {
+// Flaki is the unique ID generator.
+type Flaki struct {
 	componentID   uint64
 	nodeIDNodeID  uint64
 	lastTimestamp int64
@@ -53,20 +45,20 @@ type Generator struct {
 	timeGen func() time.Time
 }
 
-// option type is use to configure the Flaki generator. It takes one argument: the Generator we are operating on.
-type option func(*Generator) error
+// Option type is use to configure the Flaki generator. It takes one argument: the Flaki we are operating on.
+type Option func(*Flaki) error
 
-// NewFlaki returns a new unique ID generator.
+// New returns a new unique IDs generator.
 //
 // If you do not specify options, Flaki will use the following
 // default parameters: 0 for the node ID, 0 for the component ID,
 // and 01.01.2017 as start epoch.
 //
 // To change the default settings, use the options in the call
-// to NewFlaki, i.e. NewFlaki(logger, ComponentID(1), NodeID(2), StartEpoch(startEpoch))
-func NewFlaki(options ...option) (Flaki, error) {
+// to New, i.e. New(logger, ComponentID(1), NodeID(2), StartEpoch(startEpoch))
+func New(options ...Option) (*Flaki, error) {
 
-	var flaki = &Generator{
+	var flaki = &Flaki{
 		componentID:   0,
 		nodeIDNodeID:  0,
 		startEpoch:    time.Date(2017, 1, 1, 0, 0, 0, 0, time.UTC),
@@ -88,12 +80,12 @@ func NewFlaki(options ...option) (Flaki, error) {
 }
 
 // NextID returns a new unique ID, or an error if the clock moves backward.
-func (g *Generator) NextID() (uint64, error) {
-	g.mutex.Lock()
-	defer g.mutex.Unlock()
+func (f *Flaki) NextID() (uint64, error) {
+	f.mutex.Lock()
+	defer f.mutex.Unlock()
 
-	var timestamp = g.currentTimeInUnixMillis()
-	var prevTimestamp = g.lastTimestamp
+	var timestamp = f.currentTimeInUnixMillis()
+	var prevTimestamp = f.lastTimestamp
 
 	if timestamp < prevTimestamp {
 		return 0, fmt.Errorf("clock moved backwards. Refusing to generate IDs for %d [ms]", prevTimestamp-timestamp)
@@ -103,24 +95,24 @@ func (g *Generator) NextID() (uint64, error) {
 	// the sequence overflows. If it happens, we wait till the next time unit to generate new IDs,
 	// otherwise we end up with duplicates.
 	if timestamp == prevTimestamp {
-		g.sequence = (g.sequence + 1) & sequenceMask
-		if g.sequence == 0 {
-			timestamp = g.tilNextMillis(prevTimestamp)
+		f.sequence = (f.sequence + 1) & sequenceMask
+		if f.sequence == 0 {
+			timestamp = f.tilNextMillis(prevTimestamp)
 		}
 	} else {
-		g.sequence = 0
+		f.sequence = 0
 	}
 
-	g.lastTimestamp = timestamp
-	var id = (uint64(timestamp-timeToUnixMillis(g.startEpoch)) << timestampLeftShift) |
-		(g.nodeIDNodeID << nodeIDNodeIDShift) | (g.componentID << componentIDShift) | g.sequence
+	f.lastTimestamp = timestamp
+	var id = (uint64(timestamp-timeToUnixMillis(f.startEpoch)) << timestampLeftShift) |
+		(f.nodeIDNodeID << nodeIDNodeIDShift) | (f.componentID << componentIDShift) | f.sequence
 
 	return id, nil
 }
 
 // NextIDString returns the NextID as a string.
-func (g *Generator) NextIDString() (string, error) {
-	var id, err = g.NextID()
+func (f *Flaki) NextIDString() (string, error) {
+	var id, err = f.NextID()
 	if err != nil {
 		return "", err
 	}
@@ -130,12 +122,12 @@ func (g *Generator) NextIDString() (string, error) {
 // NextValidID always returns a new unique ID, it never returns an error.
 // If the clock moves backward, it waits until the situation goes back to normal
 // and then returns the valid ID.
-func (g *Generator) NextValidID() uint64 {
+func (f *Flaki) NextValidID() uint64 {
 	var id uint64
 	var err = fmt.Errorf("")
 
 	for err != nil {
-		id, err = g.NextID()
+		id, err = f.NextID()
 		if err != nil {
 			// Do nothing: we wait until we get a valid ID
 		}
@@ -145,17 +137,17 @@ func (g *Generator) NextValidID() uint64 {
 }
 
 // NextValidIDString returns the NextValidID as a string.
-func (g *Generator) NextValidIDString() string {
-	var id = g.NextValidID()
+func (f *Flaki) NextValidIDString() string {
+	var id = f.NextValidID()
 	return strconv.FormatUint(id, 10)
 }
 
 // tilNextMillis waits until the next millisecond.
-func (g *Generator) tilNextMillis(prevTimestamp int64) int64 {
-	var timestamp = g.currentTimeInUnixMillis()
+func (f *Flaki) tilNextMillis(prevTimestamp int64) int64 {
+	var timestamp = f.currentTimeInUnixMillis()
 
 	for timestamp <= prevTimestamp {
-		timestamp = g.currentTimeInUnixMillis()
+		timestamp = f.currentTimeInUnixMillis()
 	}
 	return timestamp
 }
@@ -170,71 +162,53 @@ func epochValidity(startEpoch time.Time) time.Time {
 	return validUntil
 }
 
-func (g *Generator) currentTimeInUnixMillis() int64 {
-	return timeToUnixMillis(g.timeGen())
+func (f *Flaki) currentTimeInUnixMillis() int64 {
+	return timeToUnixMillis(f.timeGen())
 }
 
 func timeToUnixMillis(t time.Time) int64 {
 	return t.UnixNano() / 1e6
 }
 
-// ComponentID is the option used to set the component ID in the call
-// to NewFlaki.
-func ComponentID(id uint64) option {
-	return func(g *Generator) error {
-		return g.setComponentID(id)
+// ComponentID is the option used to set the component ID.
+func ComponentID(id uint64) Option {
+	return func(f *Flaki) error {
+		if id > maxComponentID {
+			return fmt.Errorf("the component id must be in [%d..%d]", 0, maxComponentID)
+		}
+		f.componentID = id
+		return nil
 	}
 }
 
-func (g *Generator) setComponentID(id uint64) error {
-	if id > maxComponentID {
-		return fmt.Errorf("the component id must be in [%d..%d]", 0, maxComponentID)
-	}
-	g.componentID = id
-	return nil
-}
-
-// NodeID is the option used to set the node ID in the call to NewFlaki.
-func NodeID(id uint64) option {
-	return func(g *Generator) error {
-		return g.setNodeID(id)
+// NodeID is the option used to set the node ID.
+func NodeID(id uint64) Option {
+	return func(f *Flaki) error {
+		if id > maxNodeID {
+			return fmt.Errorf("the node id must be in [%d..%d]", 0, maxNodeID)
+		}
+		f.nodeIDNodeID = id
+		return nil
 	}
 }
 
-func (g *Generator) setNodeID(id uint64) error {
-	if id > maxNodeID {
-		return fmt.Errorf("the node id must be in [%d..%d]", 0, maxNodeID)
+// StartEpoch is the option used to set the epoch.
+func StartEpoch(epoch time.Time) Option {
+	return func(f *Flaki) error {
+		// According to time.Time documentation, UnixNano returns the number of nanoseconds elapsed
+		// since January 1, 1970 UTC. The result is undefined if the Unix time in nanoseconds cannot
+		// be represented by an int64 (i.e. a date after 2262).
+		if epoch.Before(time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC)) ||
+			epoch.After(time.Date(2262, 1, 1, 0, 0, 0, 0, time.UTC)) {
+			return fmt.Errorf("the epoch must be between 01.01.1970 and 01.01.2262")
+		}
+		f.startEpoch = epoch
+		return nil
 	}
-	g.nodeIDNodeID = id
-	return nil
 }
 
-// StartEpoch is the option used to set the epoch in the call to NewFlaki.
-func StartEpoch(epoch time.Time) option {
-	return func(g *Generator) error {
-		return g.setStartEpoch(epoch)
-	}
-}
-
-func (g *Generator) setStartEpoch(epoch time.Time) error {
-	// According to time.Time documentation, UnixNano returns the number of nanoseconds elapsed
-	// since January 1, 1970 UTC. The result is undefined if the Unix time in nanoseconds cannot
-	// be represented by an int64 (i.e. a date after 2262).
-	if epoch.Before(time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC)) ||
-		epoch.After(time.Date(2262, 1, 1, 0, 0, 0, 0, time.UTC)) {
-		return fmt.Errorf("the epoch must be between 01.01.1970 and 01.01.2262")
-	}
-	g.startEpoch = epoch
-	return nil
-}
-
-// SetTimeGen set the function that returns the current time. It is used in the tests
+// setTimeGen set the function that returns the current time. It is used in the tests
 // to control the time.
-func (g *Generator) SetTimeGen(timeGen func() time.Time) {
-	g.timeGen = timeGen
-}
-
-// Format the time: dd-MM-yyyy hh:mm:ss +hhmm UTC.
-func formatTime(t time.Time) string {
-	return t.Format("02-01-2006 15:04:05 -0700 MST")
+func (f *Flaki) setTimeGen(timeGen func() time.Time) {
+	f.timeGen = timeGen
 }

@@ -8,62 +8,60 @@ import (
 )
 
 func TestNewFlaki(t *testing.T) {
-	var flaki Flaki
-	var err error
+	var flaki, err = New()
 
-	flaki, err = NewFlaki()
 	assert.Nil(t, err)
 	assert.NotNil(t, flaki)
 }
 
 func TestSetComponentID(t *testing.T) {
-	var flaki Flaki
+	var flaki *Flaki
 	var err error
 
-	// Test with invalid component ids.
+	// Test with invalid component IDs.
 	var invalidComponentIDs = []uint64{maxComponentID + 1, maxComponentID + 2}
 
 	for _, invalidID := range invalidComponentIDs {
-		flaki, err = NewFlaki(ComponentID(invalidID))
+		flaki, err = New(ComponentID(invalidID))
 		assert.NotNil(t, err)
 		assert.Nil(t, flaki)
 	}
 
-	// Test with valid component ids.
+	// Test with valid component IDs.
 	var validComponentIDs = []uint64{0, 1, maxComponentID - 1, maxComponentID}
 
 	for _, validID := range validComponentIDs {
-		flaki, err = NewFlaki(ComponentID(validID))
+		flaki, err = New(ComponentID(validID))
 		assert.Nil(t, err)
 		assert.NotNil(t, flaki)
 	}
 }
 
 func TestSetNodeID(t *testing.T) {
-	var flaki Flaki
+	var flaki *Flaki
 	var err error
 
-	// Test with invalid node ids.
+	// Test with invalid node IDs.
 	var invalidNodeIDs = []uint64{maxNodeID + 1, maxNodeID + 2}
 
 	for _, invalidID := range invalidNodeIDs {
-		flaki, err = NewFlaki(NodeID(invalidID))
+		flaki, err = New(NodeID(invalidID))
 		assert.NotNil(t, err)
 		assert.Nil(t, flaki)
 	}
 
-	// Test with valid node ids.
+	// Test with valid node IDs.
 	var validNodeIDs = []uint64{0, 1, maxNodeID - 1, maxNodeID}
 
 	for _, validID := range validNodeIDs {
-		flaki, err = NewFlaki(NodeID(validID))
+		flaki, err = New(NodeID(validID))
 		assert.Nil(t, err)
 		assert.NotNil(t, flaki)
 	}
 }
 
 func TestSetEpoch(t *testing.T) {
-	var flaki Flaki
+	var flaki *Flaki
 	var err error
 
 	// Test with invalid epoch.
@@ -73,7 +71,7 @@ func TestSetEpoch(t *testing.T) {
 	}
 
 	for _, invalidEpoch := range invalidEpochs {
-		flaki, err = NewFlaki(StartEpoch(invalidEpoch))
+		flaki, err = New(StartEpoch(invalidEpoch))
 		assert.NotNil(t, err)
 		assert.Nil(t, flaki)
 	}
@@ -86,14 +84,14 @@ func TestSetEpoch(t *testing.T) {
 	}
 
 	for _, validEpoch := range validEpochs {
-		flaki, err = NewFlaki(StartEpoch(validEpoch))
+		flaki, err = New(StartEpoch(validEpoch))
 		assert.Nil(t, err)
 		assert.NotNil(t, flaki)
 	}
 }
 
 func TestGenerateId(t *testing.T) {
-	var flaki, err = NewFlaki()
+	var flaki, err = New()
 	assert.Nil(t, err)
 
 	var id = flaki.NextValidID()
@@ -101,7 +99,7 @@ func TestGenerateId(t *testing.T) {
 }
 
 func TestIncreasingIds(t *testing.T) {
-	var flaki, err = NewFlaki()
+	var flaki, err = New()
 	assert.Nil(t, err)
 
 	var prevID uint64
@@ -114,7 +112,7 @@ func TestIncreasingIds(t *testing.T) {
 }
 
 func TestUniqueIds(t *testing.T) {
-	var flaki, err = NewFlaki()
+	var flaki, err = New()
 	assert.Nil(t, err)
 
 	var ids = make(map[uint64]bool)
@@ -122,7 +120,7 @@ func TestUniqueIds(t *testing.T) {
 	var count int = 1e6
 	for i := 0; i < count; i++ {
 		var id = flaki.NextValidID()
-		// The id should be unique, i.e. not in the map.
+		// The ID should be unique, i.e. not in the map.
 		_, ok := ids[id]
 		assert.False(t, ok)
 		ids[id] = true
@@ -131,7 +129,7 @@ func TestUniqueIds(t *testing.T) {
 }
 
 func TestNextIDString(t *testing.T) {
-	var flaki, err = NewFlaki()
+	var flaki, err = New()
 	assert.Nil(t, err)
 
 	var id string
@@ -141,11 +139,8 @@ func TestNextIDString(t *testing.T) {
 }
 
 func TestNextIDStringError(t *testing.T) {
-	var flaki, err = NewFlaki()
+	var flaki, err = New()
 	assert.Nil(t, err)
-
-	var flakiTime, ok = flaki.(flakiTime)
-	assert.True(t, ok)
 
 	// Simulate clock that goes backward in time. The second time timeGen is called, it returns
 	// a time 2 milliseconds in the past.
@@ -163,9 +158,9 @@ func TestNextIDStringError(t *testing.T) {
 		}
 		return simulatedTime
 	}
-	flakiTime.SetTimeGen(timeGen)
+	flaki.setTimeGen(timeGen)
 
-	// Generate ids.
+	// Generate IDs.
 	var id string
 	id, err = flaki.NextIDString()
 	assert.Nil(t, err)
@@ -176,45 +171,28 @@ func TestNextIDStringError(t *testing.T) {
 }
 
 func TestNextValidIDString(t *testing.T) {
-	var flaki, err = NewFlaki()
+	var flaki, err = New()
 	assert.Nil(t, err)
 
 	var id = flaki.NextValidIDString()
 	assert.NotZero(t, id)
 }
 
-func TestFormatTime(t *testing.T) {
-	var time = time.Date(2000, 1, 23, 15, 16, 17, 0, time.UTC)
-	var expectedString = "23-01-2000 15:16:17 +0000 UTC"
-	var actual = formatTime(time)
-
-	assert.Equal(t, expectedString, actual)
-}
-
-// We use this interface to access SetTimeGen to control the time for the tests.
-type flakiTime interface {
-	Flaki
-	SetTimeGen(func() time.Time)
-}
-
 func TestConstantTimeStamp(t *testing.T) {
-	var flaki, err = NewFlaki()
+	var flaki, err = New()
 	assert.Nil(t, err)
 
-	var flakiTime, ok = flaki.(flakiTime)
-	assert.True(t, ok)
-
-	// Simulate ids generation with the same timestamp. The date returned must be after the epoch.
+	// Simulate IDs generation with the same timestamp. The date returned must be after the epoch.
 	var constantTimeGen = func() time.Time {
 		return time.Date(2018, 1, 1, 0, 0, 0, 0, time.UTC)
 	}
-	flakiTime.SetTimeGen(constantTimeGen)
+	flaki.setTimeGen(constantTimeGen)
 
 	var prevID uint64
 	prevID, err = flaki.NextID()
 	assert.Nil(t, err)
 
-	// When the timestamp is the same, the sequence is incremented to generate the next id.
+	// When the timestamp is the same, the sequence is incremented to generate the next ID.
 	for i := 0; i < 1000; i++ {
 		id, err := flaki.NextID()
 		assert.Nil(t, err)
@@ -224,11 +202,8 @@ func TestConstantTimeStamp(t *testing.T) {
 }
 
 func TestBackwardTimeShift(t *testing.T) {
-	var flaki, err = NewFlaki()
+	var flaki, err = New()
 	assert.Nil(t, err)
-
-	var flakiTime, ok = flaki.(flakiTime)
-	assert.True(t, ok)
 
 	// Simulate clock that goes backward in time. The 3rd time timeGen is called, it returns
 	// a time 2 milliseconds in the past.
@@ -246,9 +221,10 @@ func TestBackwardTimeShift(t *testing.T) {
 		}
 		return simulatedTime
 	}
-	flakiTime.SetTimeGen(timeGen)
 
-	// Generate ids.
+	flaki.setTimeGen(timeGen)
+
+	// Generate IDs.
 	var id uint64
 	id, err = flaki.NextID()
 	assert.Nil(t, err)
@@ -256,11 +232,11 @@ func TestBackwardTimeShift(t *testing.T) {
 	id = flaki.NextValidID()
 	assert.True(t, id > 0)
 
-	// Generate new id. This must returns an error.
+	// Generate new ID. This must returns an error.
 	id, err = flaki.NextID()
 	assert.NotNil(t, err)
 	assert.True(t, id == 0)
-	// Here the id should be valid. If the clock goes backward (timestamp < prevTimestamp),
+	// Here the ID should be valid. If the clock goes backward (timestamp < prevTimestamp),
 	// we wait until the situation goes back to normal (timestamp >= prevTimestamp). In this
 	// test we wait approximately 2 milliseconds.
 	id = flaki.NextValidID()
@@ -268,14 +244,11 @@ func TestBackwardTimeShift(t *testing.T) {
 }
 
 func TestTilNextMillis(t *testing.T) {
-	var flaki, err = NewFlaki()
+	var flaki, err = New()
 	assert.Nil(t, err)
 
-	var flakiTime, ok = flaki.(flakiTime)
-	assert.True(t, ok)
-
-	// Simulate sequence overflow. We return a constant timestamp and generate more than 2^15 (sequenceMask) new ids.
-	// The expected behavior is that flaki will wait until the next millisecond to return a new unique id.
+	// Simulate sequence overflow. We return a constant timestamp and generate more than 2^15 (sequenceMask) new IDs.
+	// The expected behavior is that flaki will wait until the next millisecond to return a new unique ID.
 	var nbrCallToTimeGen = 0
 	var simulatedTime = time.Date(2018, 1, 1, 0, 0, 0, 0, time.UTC)
 	var timeGen = func() time.Time {
@@ -288,9 +261,10 @@ func TestTilNextMillis(t *testing.T) {
 		nbrCallToTimeGen++
 		return simulatedTime
 	}
-	flakiTime.SetTimeGen(timeGen)
 
-	// Generate ids.
+	flaki.setTimeGen(timeGen)
+
+	// Generate IDs.
 	var prevID uint64
 	for i := 0; i < sequenceMask+3; i++ {
 		var id, err = flaki.NextID()
@@ -315,16 +289,13 @@ func TestEpochOverflow(t *testing.T) {
 	var startEpoch = time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
 	var maxTimestampValue uint64 = (1 << timestampBits) - 1
 
-	var flaki Flaki
+	var flaki *Flaki
 	{
 		var err error
-		flaki, err = NewFlaki(StartEpoch(startEpoch), ComponentID(0), NodeID(0))
+		flaki, err = New(StartEpoch(startEpoch), ComponentID(0), NodeID(0))
 		assert.Nil(t, err)
 		assert.NotNil(t, flaki)
 	}
-
-	var flakiTime, ok = flaki.(flakiTime)
-	assert.True(t, ok)
 
 	// Simulate jump in time to 1 millisecond before the end of epoch validity.
 	var simulatedTime = epochValidity(startEpoch).Add(-1 * time.Millisecond)
@@ -332,26 +303,23 @@ func TestEpochOverflow(t *testing.T) {
 		simulatedTime = simulatedTime.Add(1 * time.Millisecond)
 		return simulatedTime
 	}
-	flakiTime.SetTimeGen(timeGen)
 
-	// The timestamp part of the id is about to overflow.
+	flaki.setTimeGen(timeGen)
+
+	// The timestamp part of the ID is about to overflow.
 	var id, err = flaki.NextID()
 	assert.Nil(t, err)
 	assert.Equal(t, (id >> timestampLeftShift), maxTimestampValue)
 
-	// The timestamp part of the id overflows.
+	// The timestamp part of the ID overflows.
 	id, err = flaki.NextID()
 	assert.Nil(t, err)
 	assert.Equal(t, id, uint64(0))
 }
 
 func BenchmarkNextID(b *testing.B) {
-	var flaki Flaki
-	{
-		var err error
-		flaki, err = NewFlaki()
-		assert.Nil(b, err)
-	}
+	var flaki, err = New()
+	assert.Nil(b, err)
 
 	for n := 0; n < b.N; n++ {
 		flaki.NextID()
@@ -359,12 +327,8 @@ func BenchmarkNextID(b *testing.B) {
 }
 
 func BenchmarkNextValidID(b *testing.B) {
-	var flaki Flaki
-	{
-		var err error
-		flaki, err = NewFlaki()
-		assert.Nil(b, err)
-	}
+	var flaki, err = New()
+	assert.Nil(b, err)
 
 	for n := 0; n < b.N; n++ {
 		flaki.NextValidID()

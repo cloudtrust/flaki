@@ -18,20 +18,20 @@ If it happen, we wait till the next millisecond to return new IDs. This ensure t
 Create a new Flaki generator.
 
 ```golang
-var flaki, err = NewFlaki()
+var flaki, err = New()
 if err != nil {
     // handle error
 }
 ```
 
-You can configure the Flaki's node ID, component ID and start epoch by submitting options to the call to NewFlaki.
-NewFlaki takes a variable number of options as parameter.
+You can configure the Flaki's node ID, component ID and start epoch by submitting options to the call to New.
+New takes a variable number of options as parameter.
 If no option is given, the following default parameters are used:
 * 0 for the node ID
 * 0 for the component ID
 * 01.01.2017 for the epoch
 
-If you want to modify any of the default parameter, use the corresponding option in the call to NewFlaki.
+If you want to modify any of the default parameter, use the corresponding option in the call to New.
 
 * ComponentID(uint64)
 * NodeID(uint64)
@@ -42,7 +42,7 @@ var cID uint64 = ...
 var nID uint64 = ..
 var e time.Time = ...
 
-var flaki, err = NewFlaki(ComponentID(cID), NodeID(nID), StartEpoch(e))
+var flaki, err = New(ComponentID(cID), NodeID(nID), StartEpoch(e))
 if err != nil {
     // handle error
 }
