@@ -1,4 +1,4 @@
-# Flaki - Das kleine Generator [![Build Status](https://travis-ci.org/cloudtrust/flaki.svg?branch=master)](https://travis-ci.org/cloudtrust/flaki) [![Coverage Status](https://coveralls.io/repos/github/cloudtrust/flaki/badge.svg?branch=master)](https://coveralls.io/github/cloudtrust/flaki?branch=master) [![Go Report Card](https://goreportcard.com/badge/github.com/cloudtrust/flaki)](https://goreportcard.com/report/github.com/cloudtrust/flaki)
+# Flaki - Das kleine Generator [![Build Status][ci-img]][ci] [![Coverage Status][cov-img]][cov] [![GoDoc][godoc-img]][godoc] [![Go Report Card][report-img]][report]
 
 Flaki is an unique ID generator inspired by [Snowflake](https://github.com/twitter/snowflake).
 It generates 64-bit unique IDs of type uint64 or string. The string IDs are simply the uint64 IDs represented as a string. Each ID is composed of
@@ -27,6 +27,7 @@ if err != nil {
 You can configure the Flaki's node ID, component ID and start epoch by submitting options to the call to New.
 New takes a variable number of options as parameter.
 If no option is given, the following default parameters are used:
+
 * 0 for the node ID
 * 0 for the component ID
 * 01.01.2017 for the epoch
@@ -74,6 +75,14 @@ If the clock moves backward, it wait until the situation goes back to normal bef
 
 Flaki won't generate valid IDs after the year 2262.
 This is due to the fact that the UnixNano function of the ```package time```
-returns undefined result if the Unix time in nanoseconds cannot be represented by an int64, i.e. 
+returns undefined result if the Unix time in nanoseconds cannot be represented by an int64, i.e.
 a date before the year 1678 or after 2262.
 
+[ci-img]: https://travis-ci.org/cloudtrust/flaki.svg?branch=master
+[ci]: https://travis-ci.org/cloudtrust/flaki
+[cov-img]: https://coveralls.io/repos/github/cloudtrust/flaki/badge.svg?branch=master
+[cov]: https://coveralls.io/github/cloudtrust/flaki?branch=master
+[godoc-img]: https://godoc.org/github.com/cloudtrust/flaki?status.svg
+[godoc]: https://godoc.org/github.com/cloudtrust/flaki
+[report-img]: https://goreportcard.com/badge/github.com/cloudtrust/flaki
+[report]: https://goreportcard.com/report/github.com/cloudtrust/flaki
