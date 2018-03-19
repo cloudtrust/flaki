@@ -317,20 +317,3 @@ func TestEpochOverflow(t *testing.T) {
 	assert.Equal(t, id, uint64(0))
 }
 
-func BenchmarkNextID(b *testing.B) {
-	var flaki, err = New()
-	assert.Nil(b, err)
-
-	for n := 0; n < b.N; n++ {
-		flaki.NextID()
-	}
-}
-
-func BenchmarkNextValidID(b *testing.B) {
-	var flaki, err = New()
-	assert.Nil(b, err)
-
-	for n := 0; n < b.N; n++ {
-		flaki.NextValidID()
-	}
-}
