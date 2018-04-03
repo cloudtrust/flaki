@@ -126,11 +126,9 @@ func (f *Flaki) NextValidID() uint64 {
 	var id uint64
 	var err = fmt.Errorf("")
 
+	// We wait until we get a valid ID
 	for err != nil {
 		id, err = f.NextID()
-		if err != nil {
-			// Do nothing: we wait until we get a valid ID
-		}
 	}
 
 	return id
